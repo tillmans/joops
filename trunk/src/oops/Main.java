@@ -50,6 +50,19 @@ import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Type;
 
+/**
+ * The Oops! main program, which is used to verify that there are no
+ * unresolved dependencies in the active class path.  Invocation arguments:
+ * <ol>
+ *   <li>Nothing: scan every class and jar in the current class path and verify.</li>
+ *   <li>"-": read a list of one or more classes from standard input.</li>
+ *   <li>A valid Java class identifier: verify the specified class.</li>
+ * </ol>
+ * Add "--verbose" or "-v" to any option in order to print both success
+ * and failures.  By default, Oops! only prints failed dependencies.  That
+ * means no output is a good thing!
+ * @author gvanore
+ */
 public class Main {
     private static final BlockingQueue<String> discoveries = new LinkedBlockingQueue<String>();
     private static final ConcurrentMap<String, Boolean> analysis = new ConcurrentHashMap<String, Boolean>();
