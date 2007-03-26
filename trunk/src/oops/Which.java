@@ -61,6 +61,8 @@ public class Which {
                 Class.forName(clazz);
             } catch (ClassNotFoundException cnfe) {
                 continue;
+            } catch (NoClassDefFoundError ncdfe) {
+                continue;
             }
             if (clazz.length() > longest)
                 longest = clazz.length();
@@ -82,6 +84,10 @@ public class Which {
                 System.out.printf("%-" + longest + "s: %s%n", clazz, simpleLocation);
             } catch (ClassNotFoundException cnfe) {
                 System.err.printf("Class %s not found in class path.%n", clazz);
+            } catch (NoClassDefFoundError ncdfe) {
+                System.err.printf(
+                    "Error loading %s; could not resolve dependency %s%n", 
+                    clazz, ncdfe.getMessage().replace('/', '.'));
             }
         }
     }
