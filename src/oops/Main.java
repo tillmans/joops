@@ -104,7 +104,7 @@ public class Main {
         
         if (input == null) {
             //map the classpath and test it
-            String[] cpEntries = System.getProperty("java.class.path").split(";");
+            String[] cpEntries = System.getProperty("java.class.path").split(File.pathSeparator);
             for (String entry : cpEntries) {
                 processEntry(entry);
             }
