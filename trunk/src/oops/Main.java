@@ -70,7 +70,10 @@ public class Main {
     
     private static final Pattern CLSID = Pattern.compile("\\[*?L(.*?(/.*?)*);");
     
-    protected static final ClassVisitor FINDER = new ClassReferenceFinder();
+    protected static final ClassVisitor CLS_FINDER = new ClassReferenceFinder();
+    protected static final MethodVisitor MTD_FINDER = new MethodReferenceFinder();
+    protected static final FieldVisitor FLD_FINDER = new FieldReferenceFinder();
+    protected static final AnnotationVisitor ANT_FINDER = new AnnotationReferenceFinder();
     
     private static boolean VERBOSE = false;
     
@@ -187,6 +190,45 @@ public class Main {
         }
     }
     
+    static class AnnotationReferenceFinder implements AnnotationVisitor {
+        public void visit(String arg0, Object arg1) {
+            //primitive values - don't need to search
+        }
+
+        public AnnotationVisitor visitAnnotation(String name, String desc) {
+            try {
+                String clazz = Main.extractClass(desc);
+                if (clazz != null) discoveries.put(clazz);
+            } catch (InterruptedException ie) {}
+            return this;
+        }
+
+        public AnnotationVisitor visitArray(String arg0) {
+            return this;
+        }
+
+        public void visitEnd() {}
+
+        public void visitEnum(String name, String desc, String value) {
+            try {
+                String clazz = Main.extractClass(desc);
+                if (clazz != null) discoveries.put(clazz);
+            } catch (InterruptedException ie) {}
+        }
+    }
+    
+    static class FieldReferenceFinder implements FieldVisitor {
+        public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
+            try {
+                String clazz = Main.extractClass(desc);
+                if (clazz != null) discoveries.put(clazz);
+            } catch (InterruptedException ie) {}
+            return ANT_FINDER;
+        }
+
+        public void visitAttribute(Attribute arg0) {}
+        public void visitEnd() {}
+    }
     
     static class MethodReferenceFinder implements MethodVisitor {
 
@@ -195,22 +237,21 @@ public class Main {
             try {
                 if (clazz != null) discoveries.put(clazz);
             } catch (InterruptedException ie) {}
-            return null;
+            return ANT_FINDER;
         }
 
         public AnnotationVisitor visitAnnotationDefault() {
-            return null;
+            return ANT_FINDER;
         }
 
         public void visitAttribute(Attribute arg0) {
-            System.out.printf("Method Attribute: %s%n", arg0.toString());
+            //TODO: needs implementation?
         }
 
         public void visitCode() {}
         public void visitEnd() {}
 
         public void visitFieldInsn(int op, String owner, String name, String desc) {
-            //System.out.printf("Method Field Insn: %s, owner %s, desc %s%n", name, owner, desc);
             try {
                 String clazz = Main.extractClass(desc);
                 discoveries.put(owner);
@@ -218,10 +259,7 @@ public class Main {
             } catch (InterruptedException ie) {}
         }
 
-        public void visitFrame(int arg0, int arg1, Object[] arg2, int arg3, Object[] arg4) {
-            // TODO Auto-generated method stub            
-        }
-
+        public void visitFrame(int arg0, int arg1, Object[] arg2, int arg3, Object[] arg4) {}
         public void visitIincInsn(int arg0, int arg1) {}
         public void visitInsn(int arg0) {}
         public void visitIntInsn(int arg0, int arg1) {}
@@ -264,9 +302,12 @@ public class Main {
             } catch (InterruptedException ie) {}
         }
 
-        public AnnotationVisitor visitParameterAnnotation(int arg0, String arg1, boolean arg2) {
-            System.out.printf("paramAnnotation: %s%n", arg1);
-            return null;
+        public AnnotationVisitor visitParameterAnnotation(int param, String desc, boolean visible) {
+            try {
+                String clazz = Main.extractClass(desc);
+                if (clazz != null) discoveries.put(clazz);
+            } catch (InterruptedException ie) {}
+            return ANT_FINDER;
         }
 
         public void visitTableSwitchInsn(int arg0, int arg1, Label arg2, Label[] arg3) {}
@@ -304,11 +345,11 @@ public class Main {
             try {
                 if (clazz != null) discoveries.put(clazz);
             } catch (InterruptedException ie) {}
-            return null;
+            return ANT_FINDER;
         }
 
         public void visitAttribute(Attribute arg0) {
-            System.out.println("Attribute: " + arg0);
+//          TODO: needs implementation?
         }
 
         public void visitEnd() {}
@@ -319,19 +360,17 @@ public class Main {
                 if (clazz != null) discoveries.put(clazz);
             } catch (InterruptedException ie) {}
            
-            return null;
+            return FLD_FINDER;
         }
 
         public void visitInnerClass(String name, String outer, String inner, int access) {
             try {
                 if (name != null) discoveries.put(name);
                 if (outer != null) discoveries.put(outer);
-                //System.out.printf("%s : %s%n", name, outer);
             } catch (InterruptedException ie) {}
         }
 
         public MethodVisitor visitMethod(int access, String name, String desc, String sig, String[] expts) {
-            //System.out.printf("Method: %s, desc %s, sig %s%n", name, desc, sig);
             if (expts != null) {
                 for (String expt : expts) {
                     try {
@@ -340,7 +379,7 @@ public class Main {
                 }
             }
             
-            return new MethodReferenceFinder();
+            return MTD_FINDER;
         }
 
         public void visitOuterClass(String owner, String name, String desc) {
@@ -363,7 +402,7 @@ public class Main {
                 analysis.putIfAbsent(next, false);
                 if (VERBOSE) System.out.printf("Processing: %s%n", next);
                 ClassReader cr = new ClassReader(next);
-                cr.accept(FINDER, 0);
+                cr.accept(CLS_FINDER, 0);
                 analysis.replace(next, false, true);                    
             } catch (IOException ioe) {
                 //Set up output formatting
