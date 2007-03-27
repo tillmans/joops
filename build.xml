@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<!-- ====================================================================== 
+     Mar 27, 2007 3:01:18 PM                                                        
+
+     Oops!  
+     The Oops! build script will put oops.jar into the dist directory, as the
+     final distributable binary build of the project.  This jar will include
+     all the Oops! programs: the Main executable class and any helper utilities
+     that are also bundled.  The script will also merge dependency jars into
+     the main jar so that it can be marked executable with a manifest.     
+                   
+     gvanore                                                                
+     ====================================================================== -->
+<project name="project" default="default">
+    <description>
+        The Oops! build script will put oops.jar into the dist directory, as the
+        final distributable binary build of the project.  This jar will include
+        all the Oops! programs: the Main executable class and any helper utilities
+        that are also bundled.  The script will also merge dependency jars into
+        the main jar so that it can be marked executable with a manifest.
+    </description>
+
+    <target name="default" depends="clean, dist" description="Build the project.">
+    	<!--
+    		This is an umbrella target for the others.
+    	-->
+    </target>
+
+	<target name="dist" depends="compile" description="Build distribution jar for Oops!">
+		<jar destfile="dist/oops.jar">
+			<manifest>
+				<attribute name="Built-By" value="${user.name}"/> 
+			</manifest>
+			<fileset dir="bin"/>
+			<zipfileset src="lib/asm-3.0.jar"/>
+		</jar>
+	</target>
+	
+	<target name="clean" description="Remove compiled class files and built packages.">
+		<delete dir="bin"/>
+		<delete dir="dist"/>
+		<mkdir dir="bin"/>
+		<mkdir dir="dist"/>
+	</target>
+	
+	<target name="compile" description="Compile Oops!">
+		<javac srcdir="src" destdir="bin" classpath="lib/asm-3.0.jar" target="1.5" source="1.5"/>
+	</target>
+</project>
