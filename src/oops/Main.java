@@ -114,14 +114,14 @@ public class Main {
                 }
             }
         }
-        
+
         if (input == null) {
             //map the classpath and test it
             String[] cpEntries = System.getProperty("java.class.path").split(File.pathSeparator);
             for (String entry : cpEntries) {
                 processEntry(entry);
             }
-       } else if (input.equals("-")) {
+        } else if (input.equals("-")) {
             //read list of classes from command line
             List<String> lines = new ArrayList<String>();
             String line = null;
