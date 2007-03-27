@@ -59,8 +59,10 @@ import org.objectweb.asm.Type;
  *   <li>A valid Java class identifier: verify the specified class.</li>
  * </ol>
  * Add "--verbose" or "-v" to any option in order to print both success
- * and failures.  By default, Oops! only prints failed dependencies.  That
- * means no output is a good thing!
+ * and failures.  To facilitate scripting, you may also use "--split" or "-s",
+ * which implies verbose.  But in this case, when a class is processed its name is
+ * printed to STDOUT, and if it fails, its name is printed to STDERR. By default,
+ * Oops! only prints failed dependencies.  That means no output is a good thing!
  * @author gvanore
  */
 public class Main {
@@ -75,7 +77,7 @@ public class Main {
     protected static final FieldVisitor FLD_FINDER = new FieldReferenceFinder();
     protected static final AnnotationVisitor ANT_FINDER = new AnnotationReferenceFinder();
     
-    private static boolean VERBOSE = false;
+    private static OutputStyle OUTPUT = OutputStyle.STANDARD;
     
     public static String extractClass(String desc) {
         Matcher m = CLSID.matcher(desc);
@@ -111,7 +113,9 @@ public class Main {
         if (args.length > 0) {
             for (String arg : args) {
                 if (arg.equals("-v") || arg.equals("--verbose")) {
-                    VERBOSE = true;
+                    OUTPUT = OutputStyle.VERBOSE;
+                } else if (arg.equals("-s") || arg.equals("--split")) {
+                    OUTPUT = OutputStyle.SPLIT;
                 } else {
                     input = arg;
                 }
@@ -393,29 +397,56 @@ public class Main {
     
     static class ClassDiscoverer implements Runnable {
         private final String next;
+
         ClassDiscoverer(String next) {
-            this.next = next;
+            //homogenize input formats to / format instead of .
+            if (next.contains("."))
+                this.next = next.replace('.', '/');
+            else this.next = next;
         }
+        
         public void run() {
+            String outForm = next;
             try {
                 if (analysis.containsKey(next)) return;
                 analysis.putIfAbsent(next, false);
-                if (VERBOSE) System.out.printf("Processing: %s%n", next);
+                outForm = next.replace('/', '.');
+                switch (OUTPUT) {
+                case VERBOSE:
+                    System.out.printf("Processing: %s%n", outForm);
+                    break;
+                case SPLIT:
+                    System.out.println(outForm);
+                    break;
+                default:
+                }
                 ClassReader cr = new ClassReader(next);
                 cr.accept(CLS_FINDER, 0);
                 analysis.replace(next, false, true);                    
             } catch (IOException ioe) {
-                //Set up output formatting
+                //Mark class as processed
+                analysis.putIfAbsent(next, false);
+                
+                //Tell the user what happened
                 String stdErrMsg = "%s%n";
                 String vbsErrMsg = "Fail: %s%n";
-                String errMsg = VERBOSE ? vbsErrMsg : stdErrMsg;
-                
-                System.out.printf(errMsg, next.replace('/', '.'));
-                analysis.putIfAbsent(next, false);
+                switch (OUTPUT) {
+                case VERBOSE:
+                    System.out.printf(vbsErrMsg, outForm);
+                    break;
+                case SPLIT:
+                    System.err.printf(stdErrMsg, outForm);
+                    break;
+                default:
+                    System.out.printf(stdErrMsg, outForm);
+                }
             }
         }
     }
 }
 
-
-
+enum OutputStyle {
+    STANDARD,
+    VERBOSE,
+    SPLIT;
+}
