@@ -65,21 +65,21 @@ import org.objectweb.asm.Type;
  * Oops! only prints failed dependencies.  That means no output is a good thing!
  * @author gvanore
  */
-public class Main {
-    private static final BlockingQueue<String> discoveries = new LinkedBlockingQueue<String>();
-    private static final ConcurrentMap<String, Boolean> analysis = new ConcurrentHashMap<String, Boolean>();
-    private static final ExecutorService pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 4);
+public class Main implements Runnable {
+    private final BlockingQueue<String> discoveries = new LinkedBlockingQueue<String>();
+    private final ConcurrentMap<String, Boolean> analysis = new ConcurrentHashMap<String, Boolean>();
+    private final ExecutorService pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 4);
     
     private static final Pattern CLSID = Pattern.compile("\\[*?L(.*?(/.*?)*);");
     
-    protected static final ClassVisitor CLS_FINDER = new ClassReferenceFinder();
-    protected static final MethodVisitor MTD_FINDER = new MethodReferenceFinder();
-    protected static final FieldVisitor FLD_FINDER = new FieldReferenceFinder();
-    protected static final AnnotationVisitor ANT_FINDER = new AnnotationReferenceFinder();
+    protected final ClassVisitor CLS_FINDER = new ClassReferenceFinder();
+    protected final MethodVisitor MTD_FINDER = new MethodReferenceFinder();
+    protected final FieldVisitor FLD_FINDER = new FieldReferenceFinder();
+    protected final AnnotationVisitor ANT_FINDER = new AnnotationReferenceFinder();
     
-    private static OutputStyle OUTPUT = OutputStyle.STANDARD;
+    protected DependencyVisitor visitor = new DefaultDependencyVisitor(OutputStyle.STANDARD);
     
-    public static String extractClass(String desc) {
+    protected static String extractClass(String desc) {
         Matcher m = CLSID.matcher(desc);
         if (m.matches()) {
             if (m.group(1).length() == 1) return null;
@@ -89,9 +89,44 @@ public class Main {
     }
     
     public static void main(String... args) throws IOException {
+        Main m = new Main();
+        
         //Process command arguments.
-        processArgs(args);
-
+        String input = null;
+        OutputStyle output = OutputStyle.STANDARD;
+        if (args.length > 0) {
+            for (String arg : args) {
+                if (arg.equals("-v") || arg.equals("--verbose")) {
+                    output = OutputStyle.VERBOSE;
+                } else if (arg.equals("-s") || arg.equals("--split")) {
+                    output = OutputStyle.SPLIT;
+                } else {
+                    input = arg;
+                }
+            }
+        }
+        
+        if (input == null) {
+            m.addClasspath();
+        } else if (input.equals("-")) {
+            //read list of classes from command line
+            List<String> lines = new ArrayList<String>();
+            String line = null;
+            LineNumberReader lnr = new LineNumberReader(new InputStreamReader(System.in));
+            while ((line = lnr.readLine()) != null) {
+                lines.add(line);
+            }
+            m.addClass(lines.toArray(new String[lines.size()]));
+        } else {
+            //put the target class onto the search list
+            m.addClass(input);
+        }
+        
+        m.visitor = new DefaultDependencyVisitor(output);
+        m.run();
+    }
+    
+    public void run() {
         //Enter the event loop.
         while(true) {
             try {
@@ -104,46 +139,47 @@ public class Main {
             }
         }
         
+        visitor.end();
         //Terminate any remaining threads and exit the JVM.
-        pool.shutdown();
+        pool.shutdown();        
     }
     
-    private static void processArgs(String... args) throws IOException {
-        String input = null;
-        if (args.length > 0) {
-            for (String arg : args) {
-                if (arg.equals("-v") || arg.equals("--verbose")) {
-                    OUTPUT = OutputStyle.VERBOSE;
-                } else if (arg.equals("-s") || arg.equals("--split")) {
-                    OUTPUT = OutputStyle.SPLIT;
-                } else {
-                    input = arg;
-                }
-            }
-        }
-
-        if (input == null) {
-            //map the classpath and test it
-            String[] cpEntries = System.getProperty("java.class.path").split(File.pathSeparator);
-            for (String entry : cpEntries) {
-                processEntry(entry);
-            }
-        } else if (input.equals("-")) {
-            //read list of classes from command line
-            List<String> lines = new ArrayList<String>();
-            String line = null;
-            LineNumberReader lnr = new LineNumberReader(new InputStreamReader(System.in));
-            while ((line = lnr.readLine()) != null) {
-                lines.add(line);
-            }
-            for (String t : lines) { discoveries.add(t); }
-        } else {
-            //put the target class onto the search list
-            discoveries.add(input);
+    /**
+     * Analyze dependencies for the entire classpath with the given visitor.
+     * @param visitor the DependencyVisitor to use.
+     */
+    public static void analyze(DependencyVisitor visitor) throws IOException {
+        Main m = new Main();
+        m.visitor = visitor;
+        m.addClasspath();
+        m.run();
+    }
+    
+    protected void addClasspath() throws IOException {
+        //map the classpath and test it
+        String[] cpEntries = System.getProperty("java.class.path").split(File.pathSeparator);
+        for (String entry : cpEntries) {
+            processEntry(entry);
         }        
     }
     
-    private static void processEntry(String entry) throws IOException {
+    /**
+     * Analyze dependencies for the specified classes.
+     * @param visitor the DependencyVisitor to use
+     * @param classes the array of classes to test
+     */
+    public static void analyze(DependencyVisitor visitor, String... classes) {
+        Main m = new Main();
+        m.visitor = visitor;
+        m.addClass(classes);
+        m.run();
+    }
+    
+    protected void addClass(String... classes) {
+        for (String clazz : classes) { discoveries.add(clazz); }
+    }
+    
+    private void processEntry(String entry) throws IOException {
         File entryFile = new File(entry);
         if (!entryFile.exists() || !entryFile.canRead()) return;
         if (entryFile.isDirectory()) {
@@ -153,7 +189,7 @@ public class Main {
         }
     }
     
-    private static void processDirectory(File root, File dir) {
+    private void processDirectory(File root, File dir) {
         File[] files = dir.listFiles();
         for (File f : files) {
             if (f.isDirectory()) {
@@ -182,7 +218,7 @@ public class Main {
         }
     }
     
-    private static void processJarFile(File jarFile) throws IOException {
+    private void processJarFile(File jarFile) throws IOException {
         JarFile jf = new JarFile(jarFile);
         JarEntry je = null;
         Enumeration<JarEntry> jarEntries = jf.entries();
@@ -194,7 +230,7 @@ public class Main {
         }
     }
     
-    static class AnnotationReferenceFinder implements AnnotationVisitor {
+    class AnnotationReferenceFinder implements AnnotationVisitor {
         public void visit(String arg0, Object arg1) {
             //primitive values - don't need to search
         }
@@ -221,7 +257,7 @@ public class Main {
         }
     }
     
-    static class FieldReferenceFinder implements FieldVisitor {
+    class FieldReferenceFinder implements FieldVisitor {
         public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
             try {
                 String clazz = Main.extractClass(desc);
@@ -234,7 +270,7 @@ public class Main {
         public void visitEnd() {}
     }
     
-    static class MethodReferenceFinder implements MethodVisitor {
+    class MethodReferenceFinder implements MethodVisitor {
 
         public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
             String clazz = Main.extractClass(desc);
@@ -332,7 +368,7 @@ public class Main {
         public void visitVarInsn(int arg0, int arg1) {}
     }
     
-    static class ClassReferenceFinder implements ClassVisitor {
+    class ClassReferenceFinder implements ClassVisitor {
         public void visit(int ver, int access, String name, String sig, String supr, String[] ifcs) {
             try {
                 if (supr != null) discoveries.put(supr);
@@ -395,7 +431,7 @@ public class Main {
         public void visitSource(String arg0, String arg1) {}
     }
     
-    static class ClassDiscoverer implements Runnable {
+    class ClassDiscoverer implements Runnable {
         private final String next;
 
         ClassDiscoverer(String next) {
@@ -406,41 +442,54 @@ public class Main {
         }
         
         public void run() {
-            String outForm = next;
+            String outForm = next.replace('/', '.');
             try {
                 if (analysis.containsKey(next)) return;
                 analysis.putIfAbsent(next, false);
-                outForm = next.replace('/', '.');
-                switch (OUTPUT) {
-                case VERBOSE:
-                    System.out.printf("Processing: %s%n", outForm);
-                    break;
-                case SPLIT:
-                    System.out.println(outForm);
-                    break;
-                default:
-                }
                 ClassReader cr = new ClassReader(next);
                 cr.accept(CLS_FINDER, 0);
-                analysis.replace(next, false, true);                    
+                analysis.replace(next, false, true);
+                visitor.success(outForm);
             } catch (IOException ioe) {
                 //Mark class as processed
                 analysis.putIfAbsent(next, false);
-                
-                //Tell the user what happened
-                String stdErrMsg = "%s%n";
-                String vbsErrMsg = "Fail: %s%n";
-                switch (OUTPUT) {
-                case VERBOSE:
-                    System.out.printf(vbsErrMsg, outForm);
-                    break;
-                case SPLIT:
-                    System.err.printf(stdErrMsg, outForm);
-                    break;
-                default:
-                    System.out.printf(stdErrMsg, outForm);
-                }
+                visitor.fail(outForm);
             }
+        }
+    }
+}
+
+class DefaultDependencyVisitor implements DependencyVisitor {
+    private OutputStyle output = OutputStyle.STANDARD;
+    public DefaultDependencyVisitor(OutputStyle output) {
+        this.output = output;
+    }
+    public void end() {}
+
+    public void fail(String name) {
+        String stdErrMsg = "%s%n";
+        String vbsErrMsg = "Fail: %s%n";
+        switch (output) {
+        case VERBOSE:
+            System.out.printf(vbsErrMsg, name);
+            break;
+        case SPLIT:
+            System.err.printf(stdErrMsg, name);
+            break;
+        default:
+            System.out.printf(stdErrMsg, name);
+        }
+    }
+
+    public void success(String name) {
+        switch (output) {
+        case VERBOSE:
+            System.out.printf("Processing: %s%n", name);
+            break;
+        case SPLIT:
+            System.out.println(name);
+            break;
+        default:
         }
     }
 }
