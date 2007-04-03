@@ -27,7 +27,10 @@ import java.io.InputStreamReader;
 import java.io.LineNumberReader;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  * Which works like the unix command "which," except it tells you the
@@ -55,40 +58,61 @@ public class Which {
             classList = lines.toArray(new String[lines.size()]);
         }
         
+        Map<String, String> results = locate(classList);
+        
         int longest = 0;
-        for (String clazz : classList) {
-            try {
-                Class.forName(clazz);
-            } catch (ClassNotFoundException cnfe) {
-                continue;
-            } catch (NoClassDefFoundError ncdfe) {
-                continue;
-            }
+        for (String clazz : results.keySet()) {
             if (clazz.length() > longest)
                 longest = clazz.length();
         }
         
-        for (String clazz : classList) {
-            try {
-                Class test = Class.forName(clazz);
-                URL location = test.getResource(test.getSimpleName() + ".class");
-                
-                //Strip out excess information that we don't need to see, such
-                //as the jar:file:/ and file:/ protocol strings, and also remove
-                //the class file from the end of jar file entries.
-                String simpleLocation = location.toExternalForm();
-                if (simpleLocation.contains("!"))
-                    simpleLocation = simpleLocation.substring(0, simpleLocation.indexOf('!'));
-                simpleLocation = simpleLocation.substring(simpleLocation.indexOf("/") + 1);
-                
-                System.out.printf("%-" + longest + "s: %s%n", clazz, simpleLocation);
-            } catch (ClassNotFoundException cnfe) {
-                System.err.printf("Class %s not found in class path.%n", clazz);
-            } catch (NoClassDefFoundError ncdfe) {
-                System.err.printf(
-                    "Error loading %s; could not resolve dependency %s%n", 
-                    clazz, ncdfe.getMessage().replace('/', '.'));
-            }
+        for (Entry<String, String> result : results.entrySet()) {
+            String location = result.getValue();
+            if (location != null)
+                System.out.printf("%-" + longest + "s: %s%n", result.getKey(), location);
+            else 
+                System.out.printf("%-" + longest + "s: not found in class path%n", result.getKey());
+        }
+    }
+    
+    /**
+     * Search the class path and report the file used to source all the class
+     * identifiers in the array/vararg parameter.
+     * @param classes an array of class identifiers to process
+     * @return a map of class identifiers to their location.  the value
+     * will be null if the class could not be loaded
+     */
+    public static Map<String, String> locate(String... classes) {
+        Map<String, String> result = new HashMap<String, String>(classes.length);
+        for (String clazz : classes) {
+            result.put(clazz, locate(clazz));
+        }
+        return result;
+    }
+    
+    /**
+     * Search the class path and report the file used to source the given
+     * class identifier.
+     * @param clazz the class to test
+     * @return the file system location of the class file, or null if the
+     * class could not be loaded
+     */
+    public static String locate(String clazz) {
+        try {
+            Class test = Class.forName(clazz);
+            URL location = test.getResource(test.getSimpleName() + ".class");
+            //Strip out excess information that we don't need to see, such
+            //as the jar:file:/ and file:/ protocol strings, and also remove
+            //the class file from the end of jar file entries.
+            String simpleLocation = location.toExternalForm();
+            if (simpleLocation.contains("!"))
+                simpleLocation = simpleLocation.substring(0, simpleLocation.indexOf('!'));
+            simpleLocation = simpleLocation.substring(simpleLocation.indexOf("/") + 1);
+            return simpleLocation;
+        } catch (NoClassDefFoundError ncdfe) {
+            return null;
+        } catch (ClassNotFoundException cnfe) {
+            return null;
         }
     }
 }
