@@ -335,7 +335,7 @@ public class Main implements Runnable {
 
         public void visitLdcInsn(Object insn) {
             if (insn instanceof Type) {
-                addType(((Type)insn).getClassName());
+                addDescription(insn.toString());
             }
         }
 
