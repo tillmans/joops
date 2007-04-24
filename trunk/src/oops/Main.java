@@ -36,6 +36,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.regex.Matcher;
@@ -69,6 +70,7 @@ public class Main implements Runnable {
     private final BlockingQueue<String> discoveries = new LinkedBlockingQueue<String>();
     private final ConcurrentMap<String, Boolean> analysis = new ConcurrentHashMap<String, Boolean>();
     private final ExecutorService pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 4);
+    private final AtomicBoolean interruptFlag = new AtomicBoolean(false);
     
     private static final Pattern CLSID = Pattern.compile("\\[*?L(.*?(/.*?)*);");
     
@@ -86,6 +88,34 @@ public class Main implements Runnable {
             return m.group(1);
         }
         return null;
+    }
+    
+    public void setDependencyVisitor(DependencyVisitor visitor) {
+        this.visitor = visitor;
+    }
+    
+    /**
+     * Construct an analyzer which reads the entire classpath.
+     * @throws IOException - if error reading class path
+     */
+    public Main() throws IOException {
+        addClasspath();
+    }
+    
+    /**
+     * Construct an analyzer for a single class.
+     * @param clazz - the fully qualified class name
+     */
+    public Main(String clazz) {
+        addClass(clazz);
+    }
+    
+    /**
+     * Construct an analyzer for a list of classes.
+     * @param classes - the fully qualified class names
+     */
+    public Main(String... classes) {
+        addClass(classes);
     }
     
     public static void main(String... args) throws IOException {
@@ -128,7 +158,7 @@ public class Main implements Runnable {
     
     public void run() {
         //Enter the event loop.
-        while(true) {
+        while(! interruptFlag.get()) {
             try {
                 String next = discoveries.poll(1, TimeUnit.SECONDS);
                 if (next == null) break; //no more elements
@@ -139,9 +169,10 @@ public class Main implements Runnable {
             }
         }
         
+        //Terminate any remaining threads and signal shutdown
         visitor.end();
-        //Terminate any remaining threads and exit the JVM.
-        pool.shutdown();        
+        interruptFlag.set(false);
+        pool.shutdown();
     }
     
     /**
@@ -151,7 +182,6 @@ public class Main implements Runnable {
     public static void analyze(DependencyVisitor visitor) throws IOException {
         Main m = new Main();
         m.visitor = visitor;
-        m.addClasspath();
         m.run();
     }
     
@@ -169,9 +199,8 @@ public class Main implements Runnable {
      * @param classes the array of classes to test
      */
     public static void analyze(DependencyVisitor visitor, String... classes) {
-        Main m = new Main();
+        Main m = new Main(classes);
         m.visitor = visitor;
-        m.addClass(classes);
         m.run();
     }
     
@@ -230,16 +259,26 @@ public class Main implements Runnable {
         }
     }
     
+    protected void addDescription(String desc) {
+        String type = Main.extractClass(desc);
+        if (type != null) addType(type);
+    }
+    
+    protected void addType(String type) {
+        try {
+            discoveries.put(type);
+        } catch (InterruptedException ie) {
+            interruptFlag.compareAndSet(false, true);
+        }
+    }
+    
     class AnnotationReferenceFinder implements AnnotationVisitor {
         public void visit(String arg0, Object arg1) {
             //primitive values - don't need to search
         }
 
         public AnnotationVisitor visitAnnotation(String name, String desc) {
-            try {
-                String clazz = Main.extractClass(desc);
-                if (clazz != null) discoveries.put(clazz);
-            } catch (InterruptedException ie) {}
+            addDescription(desc);
             return this;
         }
 
@@ -250,19 +289,13 @@ public class Main implements Runnable {
         public void visitEnd() {}
 
         public void visitEnum(String name, String desc, String value) {
-            try {
-                String clazz = Main.extractClass(desc);
-                if (clazz != null) discoveries.put(clazz);
-            } catch (InterruptedException ie) {}
+            addDescription(desc);
         }
     }
     
     class FieldReferenceFinder implements FieldVisitor {
         public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-            try {
-                String clazz = Main.extractClass(desc);
-                if (clazz != null) discoveries.put(clazz);
-            } catch (InterruptedException ie) {}
+            addDescription(desc);
             return ANT_FINDER;
         }
 
@@ -273,10 +306,7 @@ public class Main implements Runnable {
     class MethodReferenceFinder implements MethodVisitor {
 
         public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
-            String clazz = Main.extractClass(desc);
-            try {
-                if (clazz != null) discoveries.put(clazz);
-            } catch (InterruptedException ie) {}
+            addDescription(desc);
             return ANT_FINDER;
         }
 
@@ -292,11 +322,8 @@ public class Main implements Runnable {
         public void visitEnd() {}
 
         public void visitFieldInsn(int op, String owner, String name, String desc) {
-            try {
-                String clazz = Main.extractClass(desc);
-                discoveries.put(owner);
-                if (clazz != null) discoveries.put(clazz);
-            } catch (InterruptedException ie) {}
+            addType(owner);
+            addDescription(desc);
         }
 
         public void visitFrame(int arg0, int arg1, Object[] arg2, int arg3, Object[] arg4) {}
@@ -306,63 +333,47 @@ public class Main implements Runnable {
         public void visitJumpInsn(int arg0, Label arg1) {}
         public void visitLabel(Label arg0) {}
 
-        public void visitLdcInsn(Object arg0) {
-            if (arg0 instanceof Type) {
-                String clazz = Main.extractClass(arg0.toString().trim());
-                try {
-                    if (clazz != null) discoveries.put(clazz);
-                } catch (InterruptedException ie) {}
+        public void visitLdcInsn(Object insn) {
+            if (insn instanceof Type) {
+                addType(((Type)insn).getClassName());
             }
         }
 
         public void visitLineNumber(int arg0, Label arg1) {}
 
         public void visitLocalVariable(String name, String desc, String sig, Label start, Label end, int index) {
-            String clazz = Main.extractClass(desc);
-            try {
-                if (clazz != null) discoveries.put(clazz);
-            } catch (InterruptedException ie) {}
+            addDescription(desc);
         }
 
         public void visitLookupSwitchInsn(Label arg0, int[] arg1, Label[] arg2) {}
         public void visitMaxs(int arg0, int arg1) {}
 
         public void visitMethodInsn(int op, String owner, String name, String desc) {
-            try {
-                if (owner.startsWith("[") && owner.charAt(1) != 'L') return;
-                String clazz = Main.extractClass(owner);
-                discoveries.put((owner.endsWith(";")) ? clazz : owner);
-            } catch (InterruptedException ie) {}
+            if (owner.startsWith("[") && owner.charAt(1) != 'L') return;
+            if (owner.endsWith(";")) {
+                addDescription(desc);
+            } else {
+                addType(owner);
+            }
         }
 
         public void visitMultiANewArrayInsn(String type, int arg1) {
-            String clazz = Main.extractClass(type);
-            try {
-                if (clazz != null) discoveries.put(clazz);
-            } catch (InterruptedException ie) {}
+            addDescription(type);
         }
 
         public AnnotationVisitor visitParameterAnnotation(int param, String desc, boolean visible) {
-            try {
-                String clazz = Main.extractClass(desc);
-                if (clazz != null) discoveries.put(clazz);
-            } catch (InterruptedException ie) {}
+            addDescription(desc);
             return ANT_FINDER;
         }
 
         public void visitTableSwitchInsn(int arg0, int arg1, Label arg2, Label[] arg3) {}
 
         public void visitTryCatchBlock(Label arg0, Label arg1, Label arg2, String type) {
-            try {
-                if (type != null) discoveries.put(type);
-            } catch (InterruptedException ie) {}
+            if (type != null) addType(type);
         }
 
         public void visitTypeInsn(int arg0, String type) {
-            try {
-                String clazz = Main.extractClass(type);
-                if (clazz != null) discoveries.put(clazz);
-            } catch (InterruptedException ie) {}
+            addDescription(type);
         }
 
         public void visitVarInsn(int arg0, int arg1) {}
@@ -370,21 +381,14 @@ public class Main implements Runnable {
     
     class ClassReferenceFinder implements ClassVisitor {
         public void visit(int ver, int access, String name, String sig, String supr, String[] ifcs) {
-            try {
-                if (supr != null) discoveries.put(supr);
-            } catch (InterruptedException ie) {}
+            if (supr != null) addType(supr);
             for (String ifc : ifcs) {
-                try {
-                    discoveries.put(ifc);
-                } catch (InterruptedException ie) {}
+                addType(ifc);
             }
         }
 
-        public AnnotationVisitor visitAnnotation(String arg0, boolean arg1) {
-            String clazz = Main.extractClass(arg0);
-            try {
-                if (clazz != null) discoveries.put(clazz);
-            } catch (InterruptedException ie) {}
+        public AnnotationVisitor visitAnnotation(String desc, boolean arg1) {
+            addDescription(desc);
             return ANT_FINDER;
         }
 
@@ -395,27 +399,19 @@ public class Main implements Runnable {
         public void visitEnd() {}
 
         public FieldVisitor visitField(int access, String name, String desc, String sig, Object value) {
-            String clazz = Main.extractClass(desc);            
-            try {
-                if (clazz != null) discoveries.put(clazz);
-            } catch (InterruptedException ie) {}
-           
+            addDescription(desc);
             return FLD_FINDER;
         }
 
         public void visitInnerClass(String name, String outer, String inner, int access) {
-            try {
-                if (name != null) discoveries.put(name);
-                if (outer != null) discoveries.put(outer);
-            } catch (InterruptedException ie) {}
+            if (name != null) addType(name);
+            if (outer != null) addType(outer);
         }
 
         public MethodVisitor visitMethod(int access, String name, String desc, String sig, String[] expts) {
             if (expts != null) {
                 for (String expt : expts) {
-                    try {
-                        discoveries.put(expt);
-                    } catch (InterruptedException ie) {}
+                    addType(expt);
                 }
             }
             
@@ -423,9 +419,7 @@ public class Main implements Runnable {
         }
 
         public void visitOuterClass(String owner, String name, String desc) {
-            try {
-                if (owner != null) discoveries.put(owner);
-            } catch (InterruptedException ie) {}
+            if (owner != null) addType(owner);
         }
 
         public void visitSource(String arg0, String arg1) {}
