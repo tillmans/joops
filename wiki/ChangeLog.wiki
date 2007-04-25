@@ -1,0 +1,7 @@
+#summary The change log for Oops.
+
+= 0.8 =
+Initial release.
+ * Main program, which analyzes failed dependencies
+ * Which utility, to find the source of currently loaded class files
+ * Build script
