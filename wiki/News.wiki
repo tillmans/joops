@@ -1,0 +1,27 @@
+#summary News about the project
+== Getting ready for 0.9 ==
+_April 25, 2007_
+
+I have been working on updates for 0.9.  Planned features:
+ * Scripting interface: use Oops! from Java, Beanshell, Groovy, etc. in addition to running it as a standalone program.
+ * Better threading: interrupt handling (flag interrupts, stop processing, etc.)
+ * !DependencyVisitor interface for custom scripting
+ * Utility class for launching an analysis (may refactor Main class name and merge this)
+
+== News page ==
+_ April 25, 2007_
+
+I have created a news page to post status updates, heartbeats, or other things about the project as I see fit.
+
+
+
+
+
+
+
+
+
+
+
+
+
