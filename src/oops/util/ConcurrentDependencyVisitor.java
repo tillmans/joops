@@ -32,7 +32,6 @@ import oops.DependencyVisitor;
  * The Concurrent Dependency Visitor is an implementation of the
  * DependencyVisitor that uses Java concurrency utilities to retrieve the list
  * of failures or successes.
- * @author gvanore
  */
 public class ConcurrentDependencyVisitor implements DependencyVisitor {
     private CountDownLatch endGate = new CountDownLatch(1);
