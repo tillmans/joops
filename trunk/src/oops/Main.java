@@ -64,7 +64,6 @@ import org.objectweb.asm.Type;
  * which implies verbose.  But in this case, when a class is processed its name is
  * printed to STDOUT, and if it fails, its name is printed to STDERR. By default,
  * Oops! only prints failed dependencies.  That means no output is a good thing!
- * @author gvanore
  */
 public class Main implements Runnable {
     private final BlockingQueue<String> discoveries = new LinkedBlockingQueue<String>();
@@ -90,6 +89,11 @@ public class Main implements Runnable {
         return null;
     }
     
+    /**
+     * Use a specific DependencyVisitor instead of the default.  The default
+     * dependency visitor prints failures to standard output.
+     * @param visitor the visitor to use
+     */
     public void setDependencyVisitor(DependencyVisitor visitor) {
         this.visitor = visitor;
     }
@@ -156,6 +160,10 @@ public class Main implements Runnable {
         m.run();
     }
     
+    /**
+     * Execute the analysis event loop.  This method is interruptible.  Once
+     * an analysis has been run, the internal thread pool is shut down.
+     */
     public void run() {
         //Enter the event loop.
         while(! interruptFlag.get()) {
@@ -272,6 +280,9 @@ public class Main implements Runnable {
         }
     }
     
+    /**
+     * Find class references in Annotations.
+     */
     class AnnotationReferenceFinder implements AnnotationVisitor {
         public void visit(String arg0, Object arg1) {
             //primitive values - don't need to search
@@ -293,6 +304,9 @@ public class Main implements Runnable {
         }
     }
     
+    /**
+     * Find class references in Field declarations.
+     */
     class FieldReferenceFinder implements FieldVisitor {
         public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
             addDescription(desc);
@@ -303,6 +317,9 @@ public class Main implements Runnable {
         public void visitEnd() {}
     }
     
+    /**
+     * Find class references in Method implementations.
+     */
     class MethodReferenceFinder implements MethodVisitor {
 
         public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
@@ -379,6 +396,9 @@ public class Main implements Runnable {
         public void visitVarInsn(int arg0, int arg1) {}
     }
     
+    /**
+     * Find class references in Class descriptions.
+     */
     class ClassReferenceFinder implements ClassVisitor {
         public void visit(int ver, int access, String name, String sig, String supr, String[] ifcs) {
             if (supr != null) addType(supr);
@@ -425,6 +445,12 @@ public class Main implements Runnable {
         public void visitSource(String arg0, String arg1) {}
     }
     
+    /**
+     * Basic "bootstrap" class for integration with asm.  Works as a task
+     * unit in the thread pool.  Constructs an asm class reader, attempts
+     * to read the class name for this task, and reports success or fail
+     * to the visitor implementation.
+     */
     class ClassDiscoverer implements Runnable {
         private final String next;
 
@@ -453,6 +479,11 @@ public class Main implements Runnable {
     }
 }
 
+/**
+ * Default dependency visitor, intended to work with stand-alone execution
+ * of the Oops! main program.  Prints output to standard output and/or
+ * standard err, depending on command line parameters to main. 
+ */
 class DefaultDependencyVisitor implements DependencyVisitor {
     private OutputStyle output = OutputStyle.STANDARD;
     public DefaultDependencyVisitor(OutputStyle output) {
@@ -488,6 +519,10 @@ class DefaultDependencyVisitor implements DependencyVisitor {
     }
 }
 
+/**
+ * Output style types for default dependency visitor.  Used only in
+ * standalone execution of Oops! main analysis program.
+ */
 enum OutputStyle {
     STANDARD,
     VERBOSE,

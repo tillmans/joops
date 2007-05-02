@@ -36,7 +36,6 @@ import java.util.Map.Entry;
  * Which works like the unix command "which," except it tells you the
  * location of a loaded Java class.  Use "-" as the only argument to force
  * reading the class list from standard input.
- * @author gvanore
  */
 public class Which {
     public static void main(String... args) throws IOException {

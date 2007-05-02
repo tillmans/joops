@@ -22,8 +22,25 @@ THE SOFTWARE.
 
 package oops;
 
+/**
+ * This interface describes the visitor events for dependency analysis.
+ * Implement this interface to hook the analysis process. 
+ */
 public interface DependencyVisitor {
+    /**
+     * Indicates a found class
+     * @param name the fully qualified name of the class
+     */
     void success(String name);
+    
+    /**
+     * Indicates a class that failed to load
+     * @param name the fully qualified name of the class
+     */
     void fail(String name);
+    
+    /**
+     * Indicates the end of processing.
+     */
     void end();
 }
