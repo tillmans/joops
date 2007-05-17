@@ -27,12 +27,21 @@
     </target>
 
 	<target name="dist" depends="compile" description="Build distribution jar for Oops!">
-		<jar destfile="dist/oops.jar">
+		<input message="Which Oops! version is this?" addproperty="ver"/>
+		<jar destfile="dist/oops-${ver}.jar">
 			<manifest>
 				<attribute name="Built-By" value="${user.name}"/> 
+				<attribute name="Oops-Version" value="${ver}"/>
 			</manifest>
 			<fileset dir="bin"/>
 			<zipfileset src="lib/asm-3.0.jar"/>
+		</jar>
+		<jar destfile="dist/src-${ver}.zip">
+			<manifest>
+				<attribute name="Built-By" value="${user.name}"/>
+				<attribute name="Oops-Version" value="${ver}"/>
+			</manifest>
+			<fileset dir="src"/>
 		</jar>
 	</target>
 	
