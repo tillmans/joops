@@ -1,4 +1,5 @@
 #summary The change log for Oops.
+#labels Featured
 = 0.9 =
  * Scripting interface: use Oops! from Java, Beanshell, Groovy, etc. in addition to running it as a standalone program.
  * Better threading & interrupt handling (flag interrupts, stop processing, etc.)
@@ -10,4 +11,3 @@ Initial release.
  * Main program, which analyzes failed dependencies
  * Which utility, to find the source of currently loaded class files
  * Build script
-
