@@ -1,4 +1,5 @@
 #summary News about the project
+#labels Featured
 == Oops! 0.9 Released ==
 _May 17, 2007_
 
@@ -17,7 +18,6 @@ I have been working on updates for 0.9.  Planned features:
 _ April 25, 2007_
 
 I have created a news page to post status updates, heartbeats, or other things about the project as I see fit.
-
 
 
 
