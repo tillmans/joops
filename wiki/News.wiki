@@ -1,4 +1,9 @@
 #summary News about the project
+== Oops! 0.9 Released ==
+_May 17, 2007_
+
+Oops! 0.9 has now been released.  This new version introduces a scripting interface for integration with your application, build, or testing process.  See more information in the ChangeLog.
+
 == Getting ready for 0.9 ==
 _April 25, 2007_
 
@@ -12,7 +17,6 @@ I have been working on updates for 0.9.  Planned features:
 _ April 25, 2007_
 
 I have created a news page to post status updates, heartbeats, or other things about the project as I see fit.
-
 
 
 
