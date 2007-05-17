@@ -68,7 +68,7 @@ import org.objectweb.asm.Type;
  * printed to STDOUT, and if it fails, its name is printed to STDERR. By default,
  * Oops! only prints failed dependencies.  That means no output is a good thing!
  */
-public class Main implements Runnable {
+public class Analyzer implements Runnable {
     private final BlockingQueue<String> discoveries = new LinkedBlockingQueue<String>();
     private final ConcurrentMap<String, Boolean> analysis = new ConcurrentHashMap<String, Boolean>();
     private final ExecutorService pool = Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors() * 4);
@@ -105,7 +105,7 @@ public class Main implements Runnable {
      * Construct an analyzer which reads the entire classpath.
      * @throws IOException - if error reading class path
      */
-    public Main() throws IOException {
+    public Analyzer() throws IOException {
         addClasspath();
     }
     
@@ -113,7 +113,7 @@ public class Main implements Runnable {
      * Construct an analyzer for a single class.
      * @param clazz - the fully qualified class name
      */
-    public Main(String clazz) {
+    public Analyzer(String clazz) {
         addClass(clazz);
     }
     
@@ -121,12 +121,12 @@ public class Main implements Runnable {
      * Construct an analyzer for a list of classes.
      * @param classes - the fully qualified class names
      */
-    public Main(String... classes) {
+    public Analyzer(String... classes) {
         addClass(classes);
     }
     
     public static void main(String... args) throws IOException {
-        Main m = new Main();
+        Analyzer m = new Analyzer();
         
         //Process command arguments.
         String input = null;
@@ -191,7 +191,7 @@ public class Main implements Runnable {
      * @param visitor the DependencyVisitor to use.
      */
     public static void analyze(DependencyVisitor visitor) throws IOException {
-        Main m = new Main();
+        Analyzer m = new Analyzer();
         m.visitor = visitor;
         m.run();
     }
@@ -210,7 +210,18 @@ public class Main implements Runnable {
      * @param classes the array of classes to test
      */
     public static void analyze(DependencyVisitor visitor, String... classes) {
-        Main m = new Main(classes);
+        Analyzer m = new Analyzer(classes);
+        m.visitor = visitor;
+        m.run();
+    }
+    
+    /**
+     * Analyze dependencies for a specific class.
+     * @Param visitor the DependencyVisitor to use
+     * @param clazz the fully qualified class name to test
+     */
+    public static void analyze(DependencyVisitor visitor, String clazz) {
+        Analyzer m = new Analyzer(clazz);
         m.visitor = visitor;
         m.run();
     }
@@ -221,7 +232,7 @@ public class Main implements Runnable {
      * @throws IOException if a class path entry cannot be read
      */
     public static Set<String> analyze() throws IOException, InterruptedException {
-        Main analyzer = new Main();
+        Analyzer analyzer = new Analyzer();
         return getFailures(analyzer);
     }
     
@@ -231,11 +242,21 @@ public class Main implements Runnable {
      * @return a set of failed class names
      */
     public static Set<String> analyze(String... classes) throws InterruptedException {
-        Main analyzer = new Main(classes);
+        Analyzer analyzer = new Analyzer(classes);
         return getFailures(analyzer);
     }
     
-    private static Set<String> getFailures(Main analyzer) throws InterruptedException {
+    /**
+     * Analyze a class for failed dependencies.
+     * @param clazz the fully-qualified class name to test
+     * @return a set of failed class names
+     */
+    public static Set<String> analyze(String clazz) throws InterruptedException {
+        Analyzer analyzer = new Analyzer(clazz);
+        return getFailures(analyzer);
+    }
+    
+    private static Set<String> getFailures(Analyzer analyzer) throws InterruptedException {
         ConcurrentDependencyVisitor visitor = new ConcurrentDependencyVisitor();
         analyzer.setDependencyVisitor(visitor);
         
@@ -309,7 +330,7 @@ public class Main implements Runnable {
     }
     
     protected void addDescription(String desc) {
-        String type = Main.extractClass(desc);
+        String type = Analyzer.extractClass(desc);
         if (type != null) addType(type);
     }
     
