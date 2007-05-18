@@ -6,6 +6,7 @@
  * !DependencyVisitor interface for custom scripting 
  * Quite a bit of clean up and refactoring.
  * Static convenience methods for scripting
+ * Improvements to build script
 
 = 0.8 =
 
