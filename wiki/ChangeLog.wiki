@@ -4,6 +4,8 @@
  * Scripting interface: use Oops! from Java, Beanshell, Groovy, etc. in addition to running it as a standalone program.
  * Better threading & interrupt handling (flag interrupts, stop processing, etc.)
  * !DependencyVisitor interface for custom scripting 
+ * Quite a bit of clean up and refactoring.
+ * Static convenience methods for scripting
 
 = 0.8 =
 
