@@ -1,5 +1,10 @@
 #summary News about the project
 #labels Featured
+== Oops! 0.9.1 Released ==
+_November 5, 2007_
+
+Oops! 0.9.1 has been released with some awesome fixes.  I haven't been working a lot on this project, but I'm still happy with it.  I had the opportunity to discuss it with some friends at a software convention recently, and it revived my interest in it.  I noticed that there are some bugs, and they are fixed!  There is a new feature or two for you to explore as well.  Please see the ChangeLog for more information.
+
 == Oops! 0.9 Released ==
 _May 17, 2007_
 
@@ -18,8 +23,6 @@ I have been working on updates for 0.9.  Planned features:
 _ April 25, 2007_
 
 I have created a news page to post status updates, heartbeats, or other things about the project as I see fit.
-
-
 
 
 
