@@ -98,7 +98,7 @@ public class Which {
      */
     public static String locate(String clazz) {
         try {
-            Class test = Class.forName(clazz);
+            Class<?> test = Class.forName(clazz);
             URL location = test.getResource(test.getSimpleName() + ".class");
             //Strip out excess information that we don't need to see, such
             //as the jar:file:/ and file:/ protocol strings, and also remove
