@@ -40,6 +40,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -83,6 +84,9 @@ public class Analyzer implements Runnable {
     
     protected DependencyVisitor visitor = new DefaultDependencyVisitor(OutputStyle.STANDARD);
     
+    protected Logger logger = Logger.getLogger(Analyzer.class.getName());
+    protected boolean log = false;
+    
     protected static String extractClass(String desc) {
         Matcher m = CLSID.matcher(desc);
         if (m.matches()) {
@@ -90,6 +94,23 @@ public class Analyzer implements Runnable {
             return m.group(1);
         }
         return null;
+    }
+    
+    /**
+     * Set whether the Analyzer uses logging or not. Default false.
+     */
+    public void setLogging(boolean log) {
+        this.log = log;
+    }
+    
+    /**
+     * Use a specific java.util.Logger rather than the default, if
+     * logging is enabled.  Calling this implicitly turns on logging.
+     * @param logger The alternative logger to use.
+     */
+    public void setLogger(Logger logger) {
+        setLogging(true);
+        this.logger = logger;
     }
     
     /**
@@ -105,7 +126,7 @@ public class Analyzer implements Runnable {
      * Construct an analyzer which reads the entire classpath.
      * @throws IOException - if error reading class path
      */
-    public Analyzer() throws IOException {
+    public Analyzer() {
         addClasspath();
     }
     
@@ -125,10 +146,22 @@ public class Analyzer implements Runnable {
         addClass(classes);
     }
     
+    /**
+     * Construct an Analyzer with the option to skip parsing of
+     * the class path upon instantiation.
+     * @param skipDiscovery if true, do not process the class path
+     */
+    private Analyzer(boolean skipDiscovery) {
+        if (!skipDiscovery) addClasspath();
+    }
+    
     public static void main(String... args) throws IOException {
-        Analyzer m = new Analyzer();
+        //Create an analyzer, but use the private constructor
+        //to defer discover until we have processed the command
+        //line.
+        Analyzer m = new Analyzer(true);
         
-        //Process command arguments.
+        //Check output style command line arguments
         String input = null;
         OutputStyle output = OutputStyle.STANDARD;
         if (args.length > 0) {
@@ -137,13 +170,19 @@ public class Analyzer implements Runnable {
                     output = OutputStyle.VERBOSE;
                 } else if (arg.equals("-s") || arg.equals("--split")) {
                     output = OutputStyle.SPLIT;
+                } else if (arg.equals("-l") || arg.equals("--logger")) {
+                    m.setLogging(true);
+                } else if (arg.equals("-h") || arg.equals("--help")) {
+                    printUsageAndQuit();
                 } else {
                     input = arg;
                 }
             }
         }
         
+        //Check discovery targets from command line arguments
         if (input == null) {
+            //use the entire class path
             m.addClasspath();
         } else if (input.equals("-")) {
             //read list of classes from command line
@@ -155,12 +194,37 @@ public class Analyzer implements Runnable {
             }
             m.addClass(lines.toArray(new String[lines.size()]));
         } else {
-            //put the target class onto the search list
+            //put the sole target class onto the search list
             m.addClass(input);
         }
         
-        m.visitor = new DefaultDependencyVisitor(output);
+        //Register the "default" visitor and execute the task
+        m.visitor = m.new DefaultDependencyVisitor(output);
         m.run();
+    }
+    
+    private static void printUsageAndQuit() {
+        StringBuilder usage = new StringBuilder();
+        usage.append("Oops! Usage: %n")
+            .append("java -cp <classpath>%soops-xxx.jar oops.Analyzer [outputOpts] [inputOpts]%n")
+            .append("\toutputOpts:%n")
+            .append("\t-v, --verbose\tUse verbose output - print all successes and failures to STDOUT%n")
+            .append("\t-s, --split\tUse split output - print successes to STDOUT and failures to STDERR%n")
+            .append("\t-l, --logger\tUse a java.util.Logger for output.  Successes at INFO level,%n")
+            .append("\t            \tfailures at SEVERE level.  Incompatible with split output.%n")
+            .append("\t-h, --help\tPrint usage, do not execute.%n")
+            .append("%n\tinputOpts:%n")
+            .append("\t-\tRead list of classes from STDIN%n")
+            .append("\t<class>\tAnalyze a single class from fully qualified name%n")
+            .append("\t<>\tExplore and process every class in the class path%n")
+            .append("%n\tExamples:%n")
+            .append("\t-s - < classList.txt\t;Analyze classes from classList.txt, split output%n")
+            .append("\t-v -l               \t;Analyze everything in the class path, verbose output with logger%n")
+            .append("\torg.pkg.Someclass   \t;Analyze only org.pkg.Someclass%n");
+        
+        String s = String.format(usage.toString(), File.pathSeparator);
+        System.out.print(s);
+        System.exit(0);
     }
     
     /**
@@ -196,8 +260,8 @@ public class Analyzer implements Runnable {
         m.run();
     }
     
-    protected void addClasspath() throws IOException {
-        //map the classpath and test it
+    protected void addClasspath() {
+        //map the class path and test it
         String[] cpEntries = System.getProperty("java.class.path").split(File.pathSeparator);
         for (String entry : cpEntries) {
             processEntry(entry);
@@ -278,9 +342,13 @@ public class Analyzer implements Runnable {
         for (String clazz : classes) { discoveries.add(clazz); }
     }
     
-    private void processEntry(String entry) throws IOException {
+    private void processEntry(String entry) {
         File entryFile = new File(entry);
-        if (!entryFile.exists() || !entryFile.canRead()) return;
+        if (!entryFile.exists() || !entryFile.canRead()) {
+            if (log)
+                logger.warning("Cannot read the class path entry " + entry);
+            return;
+        }
         if (entryFile.isDirectory()) {
             processDirectory(entryFile, entryFile);
         } else if (entryFile.isFile()) {
@@ -289,6 +357,8 @@ public class Analyzer implements Runnable {
     }
     
     private void processDirectory(File root, File dir) {
+        if (log)
+            logger.info("Discovered directory " + dir.getName() + " in " + root.getAbsolutePath());
         File[] files = dir.listFiles();
         for (File f : files) {
             if (f.isDirectory()) {
@@ -296,6 +366,8 @@ public class Analyzer implements Runnable {
                 processDirectory(root, f);
             } else {
                 if (f.getName().endsWith(".class")) {
+                    if (log)
+                        logger.info("Discovered class file " + f.getAbsolutePath());
                     //subtract the local filesystem gunk from the entry
                     //and remove .class at the end
                     String target = f.getAbsolutePath()
@@ -317,8 +389,18 @@ public class Analyzer implements Runnable {
         }
     }
     
-    private void processJarFile(File jarFile) throws IOException {
-        JarFile jf = new JarFile(jarFile);
+    private void processJarFile(File jarFile) {
+        if (log)
+            logger.info("Discovered non-.class file " + jarFile.getAbsolutePath());
+        JarFile jf = null;
+        try { 
+            jf = new JarFile(jarFile);
+        } catch (IOException ioe) {
+            if (log)
+                logger.warning("File on classpath is neither .class or .jar file, skipping: " + jarFile.getAbsolutePath());
+            return;
+        }
+        
         JarEntry je = null;
         Enumeration<JarEntry> jarEntries = jf.entries();
         while (jarEntries.hasMoreElements()) {
@@ -539,44 +621,54 @@ public class Analyzer implements Runnable {
             }
         }
     }
-}
 
-/**
- * Default dependency visitor, intended to work with stand-alone execution
- * of the Oops! main program.  Prints output to standard output and/or
- * standard err, depending on command line parameters to main. 
- */
-class DefaultDependencyVisitor implements DependencyVisitor {
-    private OutputStyle output = OutputStyle.STANDARD;
-    public DefaultDependencyVisitor(OutputStyle output) {
-        this.output = output;
-    }
-    public void end() {}
-
-    public void fail(String name) {
-        String stdErrMsg = "%s%n";
-        String vbsErrMsg = "Fail: %s%n";
-        switch (output) {
-        case VERBOSE:
-            System.out.printf(vbsErrMsg, name);
-            break;
-        case SPLIT:
-            System.err.printf(stdErrMsg, name);
-            break;
-        default:
-            System.out.printf(stdErrMsg, name);
+    /**
+     * Default dependency visitor, intended to work with stand-alone execution
+     * of the Oops! main program.  Prints output to standard output and/or
+     * standard err, depending on command line parameters to main. 
+     */
+    class DefaultDependencyVisitor implements DependencyVisitor {
+        private OutputStyle output = OutputStyle.STANDARD;
+        public DefaultDependencyVisitor(OutputStyle output) {
+            this.output = output;
         }
-    }
-
-    public void success(String name) {
-        switch (output) {
-        case VERBOSE:
-            System.out.printf("Processing: %s%n", name);
-            break;
-        case SPLIT:
-            System.out.println(name);
-            break;
-        default:
+        public void end() {}
+    
+        public void fail(String name) {
+            String vbsErrMsg = "Fail: %s%n";
+            switch (output) {
+            case VERBOSE:
+                String msg = String.format(vbsErrMsg, name);
+                if (log)
+                    logger.severe(msg.trim());
+                else
+                    System.out.printf(vbsErrMsg, name);
+                break;
+            case SPLIT:
+                System.err.println(name);
+                break;
+            default:
+                if (log)
+                    logger.severe(name);
+                else
+                    System.out.println(name);
+            }
+        }
+    
+        public void success(String name) {
+            switch (output) {
+            case VERBOSE:
+                String msg = String.format("Processing: %s%n", name);
+                if (log)
+                    logger.info(msg.trim());
+                else
+                    System.out.print(msg);
+                break;
+            case SPLIT:
+                System.out.println(name);
+                break;
+            default:
+            }
         }
     }
 }
