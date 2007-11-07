@@ -1,5 +1,10 @@
 #summary News about the project
 #labels Featured
+== Testing, testing, testing. ==
+_November 7, 2007_
+
+For the next phase of Oops! I would like to focus on testing.  I think I should have started with clearly defined test cases and worked from there, but I had a need for a utility such as this and that drove the early development.  I won't let this project go 1.0 until I feel that I have made a comprehensive set of tests.  Of course, I value user feedback so if you are among the people who have downloaded and tried out oops and have something to say, don't be shy.  Once I "finish" this project in terms of my own needs, the community will have to drive future development.
+
 == Oops! 0.9.1 Released ==
 _November 5, 2007_
 
@@ -23,8 +28,6 @@ I have been working on updates for 0.9.  Planned features:
 _ April 25, 2007_
 
 I have created a news page to post status updates, heartbeats, or other things about the project as I see fit.
-
-
 
 
 
