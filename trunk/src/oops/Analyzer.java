@@ -124,7 +124,6 @@ public class Analyzer implements Runnable {
     
     /**
      * Construct an analyzer which reads the entire classpath.
-     * @throws IOException - if error reading class path
      */
     public Analyzer() {
         addClasspath();
@@ -254,7 +253,7 @@ public class Analyzer implements Runnable {
      * Analyze dependencies for the entire classpath with the given visitor.
      * @param visitor the DependencyVisitor to use.
      */
-    public static void analyze(DependencyVisitor visitor) throws IOException {
+    public static void analyze(DependencyVisitor visitor) {
         Analyzer m = new Analyzer();
         m.visitor = visitor;
         m.run();
@@ -293,9 +292,8 @@ public class Analyzer implements Runnable {
     /**
      * Analyze the class path for failed dependencies.
      * @return a set of failed class names
-     * @throws IOException if a class path entry cannot be read
      */
-    public static Set<String> analyze() throws IOException, InterruptedException {
+    public static Set<String> analyze() throws InterruptedException {
         Analyzer analyzer = new Analyzer();
         return getFailures(analyzer);
     }
