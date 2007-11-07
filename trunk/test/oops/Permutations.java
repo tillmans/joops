@@ -10,6 +10,7 @@ import oops.annotations.TestAnnotation;
 @TestAnnotation
 public class Permutations {
     FieldTypeReference fieldRef;
+    Enumeration e = Enumeration.blah;
 
     public ReturnTypeReference someMethod() {
         //who cares?
