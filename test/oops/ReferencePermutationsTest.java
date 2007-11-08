@@ -1,10 +1,10 @@
 package oops;
 
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+
+import org.junit.Test;
 
 import oops.util.ConcurrentDependencyVisitor;
 
@@ -13,28 +13,36 @@ import oops.util.ConcurrentDependencyVisitor;
  * by the oops Analyzer.
  */
 public class ReferencePermutationsTest {
-    /*
-     * For now we'll just make this a main class rather than depend on Junit.
-     */
     public static void main(String... args) throws Exception {
+        new ReferencePermutationsTest().testPermutations();
+    }
+    
+    @Test
+    public void testPermutations() throws Exception {
         ConcurrentDependencyVisitor cdv = new ConcurrentDependencyVisitor();
         Analyzer.analyze(cdv, "oops.Permutations");
         Set<String> success = cdv.getSuccesses();
         List<String> expectedResults = Arrays.asList(new String[] {
             "oops.annotations.EnumInAnnotation",
-            "oops.annotations.TestAnnotation",
+            "oops.annotations.TestAnnotationAnnotation",
+            "oops.annotations.TestMemberAnnotation",
+            "oops.annotations.TestMethodAnnotation",
+            "oops.annotations.TestTypeAnnotation",
+            "oops.ClassArrayInAnnotation",
             "oops.FieldTypeReference",
             "oops.MethodImplementationReference",
             "oops.MethodParameterReference",
             "oops.ReturnTypeReference",
             "oops.TypeInEnumeration",
             "oops.Enumeration"
+
         });
         
         for (String result : expectedResults) {
-            if (!success.contains(result)) {
-                System.out.println("[FAIL] " + result + " not found in result set!");
-            }
+            System.out.print("Testing " + result + "... ");
+            boolean found = success.contains(result);
+            System.out.println(found);
+            assert found;
         }
     }
 }

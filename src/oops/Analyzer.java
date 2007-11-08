@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.LineNumberReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Set;
@@ -86,6 +87,13 @@ public class Analyzer implements Runnable {
     
     protected Logger logger = Logger.getLogger(Analyzer.class.getName());
     protected boolean log = false;
+    
+    private static final boolean TRACE_ALL   = false;
+    private static final boolean TRACE_FIELD = false | TRACE_ALL;
+    private static final boolean TRACE_ANNT  = true | TRACE_ALL;
+    private static final boolean TRACE_MTHD  = false | TRACE_ALL;
+    private static final boolean TRACE_CLASS = false | TRACE_ALL;
+    
     
     protected static String extractClass(String desc) {
         Matcher m = CLSID.matcher(desc);
@@ -427,21 +435,42 @@ public class Analyzer implements Runnable {
      */
     class AnnotationReferenceFinder implements AnnotationVisitor {
         public void visit(String arg0, Object arg1) {
-            //primitive values - don't need to search
+            if (TRACE_ANNT) {
+                logger.entering(this.getClass().getName(), "visit");
+                logger.info("Params " + arg0 + " " + arg1);
+            }
+            // this could be a Class reference, so we should try to add it
+            addDescription(arg1.toString());
         }
 
         public AnnotationVisitor visitAnnotation(String name, String desc) {
+            if (TRACE_ANNT) {
+                logger.entering(this.getClass().getName(), "visitAnnotation");
+                logger.info("Params " + name + " " + desc);
+            }
             addDescription(desc);
             return this;
         }
 
         public AnnotationVisitor visitArray(String arg0) {
+            if (TRACE_ANNT) {
+                logger.entering(this.getClass().getName(), "visitArray");
+                logger.info("Params " + arg0);
+            }
             return this;
         }
 
-        public void visitEnd() {}
+        public void visitEnd() {
+            if (TRACE_ANNT) {
+                logger.entering(this.getClass().getName(), "visitEnd");
+            }
+        }
 
         public void visitEnum(String name, String desc, String value) {
+            if (TRACE_ANNT) {
+                logger.entering(this.getClass().getName(), "visitEnum");
+                logger.info("Params " + name + " " + desc + " " + value);
+            }
             addDescription(desc);
         }
     }
@@ -451,12 +480,26 @@ public class Analyzer implements Runnable {
      */
     class FieldReferenceFinder implements FieldVisitor {
         public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
+            if (TRACE_FIELD) {
+                logger.entering(this.getClass().getName(), "visitAnnotation");
+                logger.info("Params " + desc + " " + visible);
+            }
             addDescription(desc);
             return ANT_FINDER;
         }
 
-        public void visitAttribute(Attribute arg0) {}
-        public void visitEnd() {}
+        public void visitAttribute(Attribute arg0) {
+            if (TRACE_FIELD) {
+                logger.entering(this.getClass().getName(), "visitAttribute");
+                logger.info("Params " + arg0);
+            }
+        }
+        
+        public void visitEnd() {
+            if (TRACE_FIELD) {
+                logger.entering(this.getClass().getName(), "visitEnd");
+            }
+        }
     }
     
     /**
@@ -465,49 +508,129 @@ public class Analyzer implements Runnable {
     class MethodReferenceFinder implements MethodVisitor {
 
         public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitAnnotation");
+                logger.info("Params " + desc + " " + visible);
+            }
             addDescription(desc);
             return ANT_FINDER;
         }
 
         public AnnotationVisitor visitAnnotationDefault() {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitAnnotationDefault");
+            }
             return ANT_FINDER;
         }
 
         public void visitAttribute(Attribute arg0) {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitAttribute");
+                logger.info("Params " + arg0);
+            }
+
             //TODO: needs implementation?
         }
 
-        public void visitCode() {}
-        public void visitEnd() {}
+        public void visitCode() {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitCode");
+            }
+        }
+        
+        public void visitEnd() {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitEnd");
+            }
+        }
 
         public void visitFieldInsn(int op, String owner, String name, String desc) {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitFieldInsn");
+                logger.info("Params " + op + " " + owner + " " + name + " " + desc);
+            }
             addType(owner);
             addDescription(desc);
         }
 
-        public void visitFrame(int arg0, int arg1, Object[] arg2, int arg3, Object[] arg4) {}
-        public void visitIincInsn(int arg0, int arg1) {}
-        public void visitInsn(int arg0) {}
-        public void visitIntInsn(int arg0, int arg1) {}
-        public void visitJumpInsn(int arg0, Label arg1) {}
-        public void visitLabel(Label arg0) {}
+        public void visitFrame(int arg0, int arg1, Object[] arg2, int arg3, Object[] arg4) {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitFrame");
+                logger.info(String.format("Params %s %s", Arrays.toString(arg2), Arrays.toString(arg4)));
+            }
+        }
+        public void visitIincInsn(int arg0, int arg1) {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitIincInsn");
+            }
+        }
+        public void visitInsn(int arg0) {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitInsn");
+            }
+        }
+        public void visitIntInsn(int arg0, int arg1) {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitIntInsn");
+            }
+        }
+        public void visitJumpInsn(int arg0, Label arg1) {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitJumpInsn");
+                logger.info("Params " + arg1.toString());
+            }
+        }
+        public void visitLabel(Label arg0) {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitLabel");
+                logger.info("Params " + arg0);
+            }
+        }
 
         public void visitLdcInsn(Object insn) {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitLdcInsn");
+                logger.info("Params " + insn.toString());
+            }
+
             if (insn instanceof Type) {
                 addDescription(insn.toString());
             }
         }
 
-        public void visitLineNumber(int arg0, Label arg1) {}
+        public void visitLineNumber(int arg0, Label arg1) {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitLineNumber");
+                logger.info("Params " + arg1.toString());
+            }
+        }
 
         public void visitLocalVariable(String name, String desc, String sig, Label start, Label end, int index) {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitLocalVariable");
+                logger.info(String.format("Params %s %s %s %s %s", name, desc, sig, start.toString(), end.toString()));
+            }
             addDescription(desc);
         }
 
-        public void visitLookupSwitchInsn(Label arg0, int[] arg1, Label[] arg2) {}
-        public void visitMaxs(int arg0, int arg1) {}
+        public void visitLookupSwitchInsn(Label arg0, int[] arg1, Label[] arg2) {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitLookupSwitchInsn");
+                logger.info(String.format("Params %s %s", arg0.toString(), Arrays.toString(arg2)));
+            }
+        }
+        public void visitMaxs(int arg0, int arg1) {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitMaxs");
+            }
+        }
 
         public void visitMethodInsn(int op, String owner, String name, String desc) {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitMethodInsn");
+                logger.info(String.format("Params %s %s %s", owner, name, desc));
+            }
+
             if (owner.startsWith("[") && owner.charAt(1) != 'L') return;
             if (owner.endsWith(";")) {
                 addDescription(desc);
@@ -517,25 +640,52 @@ public class Analyzer implements Runnable {
         }
 
         public void visitMultiANewArrayInsn(String type, int arg1) {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitLookupSwitchInsn");
+                logger.info(String.format("Params %s", type));
+            }
+
             addDescription(type);
         }
 
         public AnnotationVisitor visitParameterAnnotation(int param, String desc, boolean visible) {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitParameterAnnotation");
+                logger.info(String.format("Params %s", desc));
+            }
+            
             addDescription(desc);
             return ANT_FINDER;
         }
 
-        public void visitTableSwitchInsn(int arg0, int arg1, Label arg2, Label[] arg3) {}
+        public void visitTableSwitchInsn(int arg0, int arg1, Label arg2, Label[] arg3) {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitTableSwitchInsn");
+                logger.info(String.format("Params %s %s", arg2.toString(), Arrays.toString(arg3)));
+            }
+        }
 
         public void visitTryCatchBlock(Label arg0, Label arg1, Label arg2, String type) {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitTryCatchBlock");
+                logger.info(String.format("Params %s %s %s %s", arg0, arg1, arg2, type));
+            }
             if (type != null) addType(type);
         }
 
         public void visitTypeInsn(int arg0, String type) {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitTypeInsn");
+                logger.info(String.format("Params %s", type));
+            }
             addDescription(type);
         }
 
-        public void visitVarInsn(int arg0, int arg1) {}
+        public void visitVarInsn(int arg0, int arg1) {
+            if (TRACE_MTHD) {
+                logger.entering(this.getClass().getName(), "visitVarInsn");
+            }
+        }
     }
     
     /**
@@ -543,6 +693,10 @@ public class Analyzer implements Runnable {
      */
     class ClassReferenceFinder implements ClassVisitor {
         public void visit(int ver, int access, String name, String sig, String supr, String[] ifcs) {
+            if (TRACE_CLASS) {
+                logger.entering(this.getClass().getName(), "visit");
+                logger.info(String.format("Params %s %s %s %s", name, sig, supr, Arrays.toString(ifcs)));
+            }
             if (supr != null) addType(supr);
             for (String ifc : ifcs) {
                 addType(ifc);
@@ -550,27 +704,54 @@ public class Analyzer implements Runnable {
         }
 
         public AnnotationVisitor visitAnnotation(String desc, boolean arg1) {
+            if (TRACE_CLASS) {
+                logger.entering(this.getClass().getName(), "visitAnnotation");
+                logger.info(String.format("Params %s", desc));
+            }
             addDescription(desc);
             return ANT_FINDER;
         }
 
         public void visitAttribute(Attribute arg0) {
+            if (TRACE_CLASS) {
+                logger.entering(this.getClass().getName(), "visitAttribute");
+                logger.info(String.format("Params %s", arg0.toString()));
+            }
 //          TODO: needs implementation?
         }
 
-        public void visitEnd() {}
+        public void visitEnd() {
+            if (TRACE_CLASS) {
+                logger.entering(this.getClass().getName(), "visitEnd");
+            }
+        }
 
         public FieldVisitor visitField(int access, String name, String desc, String sig, Object value) {
+            if (TRACE_CLASS) {
+                logger.entering(this.getClass().getName(), "visitField");
+                logger.info(String.format("Params %s %s %s %s", name, desc, sig, value.toString()));
+            }
+
             addDescription(desc);
             return FLD_FINDER;
         }
 
         public void visitInnerClass(String name, String outer, String inner, int access) {
+            if (TRACE_CLASS) {
+                logger.entering(this.getClass().getName(), "visitInnerClass");
+                logger.info(String.format("Params %s %s %s", name, outer, inner));
+            }
+
             if (name != null) addType(name);
             if (outer != null) addType(outer);
         }
 
         public MethodVisitor visitMethod(int access, String name, String desc, String sig, String[] expts) {
+            if (TRACE_CLASS) {
+                logger.entering(this.getClass().getName(), "visitMethod");
+                logger.info(String.format("Params %s %s %s %s", name, desc, sig, Arrays.toString(expts)));
+            }
+
             if (expts != null) {
                 for (String expt : expts) {
                     addType(expt);
@@ -581,10 +762,20 @@ public class Analyzer implements Runnable {
         }
 
         public void visitOuterClass(String owner, String name, String desc) {
+            if (TRACE_CLASS) {
+                logger.entering(this.getClass().getName(), "visitOuterClass");
+                logger.info(String.format("Params %s %s %s", owner, name, desc));
+            }
+
             if (owner != null) addType(owner);
         }
 
-        public void visitSource(String arg0, String arg1) {}
+        public void visitSource(String arg0, String arg1) {
+            if (TRACE_CLASS) {
+                logger.entering(this.getClass().getName(), "visitSource");
+                logger.info(String.format("Params %s %s", arg0, arg1));
+            }
+        }
     }
     
     /**
