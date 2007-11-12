@@ -34,8 +34,8 @@ public class ReferencePermutationsTest {
             "oops.MethodParameterReference",
             "oops.ReturnTypeReference",
             "oops.TypeInEnumeration",
-            "oops.Enumeration"
-
+            "oops.Enumeration",
+            "oops.annotations.TestAnnotationAnnotation$NestedAnnotation"
         });
         
         for (String result : expectedResults) {
