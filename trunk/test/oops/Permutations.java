@@ -13,10 +13,11 @@ public class Permutations {
     FieldTypeReference fieldRef;
     @TestMemberAnnotation({ClassArrayInAnnotation.class}) String annotationTest = "";
     Enumeration e = Enumeration.blah;
+    InnerClass c = new InnerClass();
 
     public ReturnTypeReference someMethod() {
         //who cares?
-        return new ReturnTypeReference();
+        return null;
     }
     
     public void anotherMethod(MethodParameterReference theRef) {
@@ -30,6 +31,10 @@ public class Permutations {
     
     @TestMethodAnnotation
     public void annotated() {
+        
+    }
+    
+    public class InnerClass {
         
     }
 }

@@ -90,7 +90,7 @@ public class Analyzer implements Runnable {
     
     private static final boolean TRACE_ALL   = false;
     private static final boolean TRACE_FIELD = false | TRACE_ALL;
-    private static final boolean TRACE_ANNT  = true | TRACE_ALL;
+    private static final boolean TRACE_ANNT  = false | TRACE_ALL;
     private static final boolean TRACE_MTHD  = false | TRACE_ALL;
     private static final boolean TRACE_CLASS = false | TRACE_ALL;
     
@@ -102,6 +102,26 @@ public class Analyzer implements Runnable {
             return m.group(1);
         }
         return null;
+    }
+    
+    protected static String[] extractMethodClasses(String desc) {
+        String returnTypeDesc = desc.substring(desc.lastIndexOf(")") + 1);
+        String[] params;
+        if (desc.startsWith("()"))
+            params = new String[] {};
+        else {
+            String paramString = desc.substring(1, desc.lastIndexOf(")"));
+            params = paramString.split(";");
+        }
+        
+        String[] result = new String[params.length + 1];
+        result[0] = extractClass(returnTypeDesc);
+        int index = 1;
+        for (String c : params) {
+            if (!c.contains("L")) continue;
+            result[index++] = extractClass(c.substring(c.indexOf("L")) + ";");
+        }
+        return result;
     }
     
     /**
@@ -418,8 +438,15 @@ public class Analyzer implements Runnable {
     }
     
     protected void addDescription(String desc) {
-        String type = Analyzer.extractClass(desc);
-        if (type != null) addType(type);
+        if (desc.contains("(") && desc.contains(")")) {
+            String[] types = Analyzer.extractMethodClasses(desc);
+            for (String t : types) {
+                if (t != null) addType(t);
+            }
+        } else {
+            String type = Analyzer.extractClass(desc);
+            if (type != null) addType(type);
+        }
     }
     
     protected void addType(String type) {
@@ -493,6 +520,7 @@ public class Analyzer implements Runnable {
                 logger.entering(this.getClass().getName(), "visitAttribute");
                 logger.info("Params " + arg0);
             }
+            //TODO: Needs implementation?
         }
         
         public void visitEnd() {
@@ -528,7 +556,6 @@ public class Analyzer implements Runnable {
                 logger.entering(this.getClass().getName(), "visitAttribute");
                 logger.info("Params " + arg0);
             }
-
             //TODO: needs implementation?
         }
 
@@ -697,6 +724,8 @@ public class Analyzer implements Runnable {
                 logger.entering(this.getClass().getName(), "visit");
                 logger.info(String.format("Params %s %s %s %s", name, sig, supr, Arrays.toString(ifcs)));
             }
+            //Note: we do not need to add 'name' because visiting it implies we've already
+            //added it to our work queue.
             if (supr != null) addType(supr);
             for (String ifc : ifcs) {
                 addType(ifc);
@@ -717,7 +746,7 @@ public class Analyzer implements Runnable {
                 logger.entering(this.getClass().getName(), "visitAttribute");
                 logger.info(String.format("Params %s", arg0.toString()));
             }
-//          TODO: needs implementation?
+            //TODO: needs implementation?
         }
 
         public void visitEnd() {
@@ -729,7 +758,7 @@ public class Analyzer implements Runnable {
         public FieldVisitor visitField(int access, String name, String desc, String sig, Object value) {
             if (TRACE_CLASS) {
                 logger.entering(this.getClass().getName(), "visitField");
-                logger.info(String.format("Params %s %s %s %s", name, desc, sig, value.toString()));
+                logger.info(String.format("Params %s %s %s %s", name, desc, sig, (value == null) ? "null" : value.toString()));
             }
 
             addDescription(desc);
@@ -752,6 +781,8 @@ public class Analyzer implements Runnable {
                 logger.info(String.format("Params %s %s %s %s", name, desc, sig, Arrays.toString(expts)));
             }
 
+            if (desc != null && !name.equals("<init>")) addDescription(desc);
+            
             if (expts != null) {
                 for (String expt : expts) {
                     addType(expt);
@@ -800,7 +831,7 @@ public class Analyzer implements Runnable {
                 if (analysis.containsKey(next)) return;
                 analysis.putIfAbsent(next, false);
                 ClassReader cr = new ClassReader(next);
-                cr.accept(CLS_FINDER, 0);
+                cr.accept(CLS_FINDER, ClassReader.EXPAND_FRAMES);
                 analysis.replace(next, false, true);
                 visitor.success(outForm);
             } catch (IOException ioe) {

@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
+import org.junit.Assert;
 import org.junit.Test;
 
 import oops.util.ConcurrentDependencyVisitor;
@@ -35,14 +36,16 @@ public class ReferencePermutationsTest {
             "oops.ReturnTypeReference",
             "oops.TypeInEnumeration",
             "oops.Enumeration",
-            "oops.annotations.TestAnnotationAnnotation$NestedAnnotation"
+            "oops.annotations.TestAnnotationAnnotation$NestedAnnotation",
+            "oops.Permutations",
+            "oops.Permutations$InnerClass"
         });
         
         for (String result : expectedResults) {
             System.out.print("Testing " + result + "... ");
             boolean found = success.contains(result);
             System.out.println(found);
-            assert found;
+            Assert.assertTrue(found);
         }
     }
 }
